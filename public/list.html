@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>地铁站列表模拟</title>
+  <style>
+    /* 初始化样式 */
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+
+    /* 响应式样式 */
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 2em;
+      }
+    }
+
+    .list-item {
+      display: inline-block;
+      margin: 10px;
+      padding: 10px;
+      background-color: #f2f2f2;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 id="heading">切换地铁站</h1>
+  <div id="listCon"></div>
+  <iframe id="demo" src="./index.html?isTest=true" style="width: 100vw; height: 80vh"></iframe>
+
+  <script>
+    const stations = [
+      // { station_id: "0801", station_name: "下应南站" },
+      // { station_id: "0802", station_name: "寒松路站" },
+      // { station_id: "0803", station_name: "学府路站" },
+      // { station_id: "0804", station_name: "南部商务区站" },
+      // { station_id: "0805", station_name: "鄞州公园南站" },
+      // { station_id: "0806", station_name: "庙堰站" },
+      // { station_id: "0807", station_name: "堇山西路站" },
+      // { station_id: "0808", station_name: "段塘站" },
+      // { station_id: "0809", station_name: "南苑站" },
+      // { station_id: "0810", station_name: "丽园南路站" },
+      // { station_id: "0811", station_name: "联丰站" },
+      // { station_id: "0812", station_name: "泽民站" },
+      // { station_id: "0813", station_name: "市中医院站" },
+      // { station_id: "0814", station_name: "青林湾站" },
+      // { station_id: "0815", station_name: "榭嘉站" },
+      // { station_id: "0816", station_name: "洪大路站" },
+      // { station_id: "0817", station_name: "洪盛路站" },
+      // { station_id: "0818", station_name: "洪塘站" },
+      // { station_id: "0819", station_name: "开元路站" },
+      // { station_id: "0830", station_name: "下应南车辆基地" },
+      // { station_id: "0831", station_name: "洪塘停车场" },
+      // { station_id: "0832", station_name: "控制中心" },
+      { station_id: "0833", station_name: "大鹏站" },
+      { station_id: "0834", station_name: "葵涌站" },
+      { station_id: "0835", station_name: "龙城站" },
+      { station_id: "0836", station_name: "坪山站" },
+      { station_id: "0837", station_name: "新大站" },
+      { station_id: "0838", station_name: "燕子湖站" },
+    ];
+
+    let i = 1;
+    stations.forEach((station) => {
+      const listItem = document.createElement("div");
+      listItem.id = `${station.station_id}`;
+      listItem.className = "list-item";
+      listItem.innerText =
+        i++ + `- ${station.station_name}(${station.station_id})`;
+      listItem.addEventListener("click", function () {
+        localStorage.setItem("stationId", station.station_id);
+        localStorage.setItem("stationName", station.station_name);
+        const iframeDom = document.getElementById("demo");
+        iframeDom.src = "./index.html?isTest=true";
+        // window.open('index.html', '_blank');
+      });
+      document.getElementById("listCon").appendChild(listItem);
+    });
+  </script>
+</body>
+
+</html>
