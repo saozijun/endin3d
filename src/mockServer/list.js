@@ -55,7 +55,7 @@ export default [
       for (let index = 0; index < 400; index++) {
         let antName = "";
         if (index <= 9) {
-          antName = `ZRS-TXQ-00${index}D`;
+          antName = `A${index}`;
           antennas.push({
             probeId: "e2806995000040109b8592a8",
             antNumber: "01",
@@ -65,7 +65,7 @@ export default [
             pathLoss: 120,
           });
         } else if (index > 9 && index <= 99) {
-          antName = `ZRS-TXQ-0${index}D`;
+          antName = `A${index}`;
           // 特殊命名模拟
           antennas.push({
             probeId: "e2806995000040109b8592a8",
@@ -76,14 +76,14 @@ export default [
             pathLoss: 120,
           });
         } else if (index > 99 && index <= 400) {
-          antName = `ZRS-TXQ-${index}D`;
+          antName = `A${index}`;
           antennas.push({
             probeId: "e2806995000040109b8592a8",
             antNumber: "01",
             antTypeName: [305, 306, 307].includes(index)
               ? "定向天线"
               : "全向吸顶天线",
-            antName: `ZRS-${index}`,
+            antName: `A${index}`,
             antStatus: 3,
             pathLoss: 120,
           });
