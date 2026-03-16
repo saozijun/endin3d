@@ -11,7 +11,7 @@
     ></div>
   </div>
   <div class="station-container">
-    <!-- <div class="station-logo"></div> -->
+    <div class="station-logo"></div>
     <div class="station-name">{{ stationName }}</div>
   </div>
   <div class="home-container">
@@ -431,8 +431,8 @@ onMounted(async () => {
   // 开始执行渲染循环 将所有内容具现化
   renderLoop();
   // 动态的获取服务器天线列表 根据数据变化实时修改天线状态
-  // mockDataChange();
-  // fetchDataTimer.value = setInterval(mockDataChange, intervalTime.value * 1000);
+  mockDataChange();
+  fetchDataTimer.value = setInterval(mockDataChange, intervalTime.value * 1000);
 });
 
 onBeforeMount(() => {
