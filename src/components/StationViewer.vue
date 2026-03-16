@@ -64,7 +64,6 @@ import { formatAntennaList } from "@/api/utils";
 let model;
 // 指示牌的底部线集合 便于后续清除
 let dialogLineList = [];
-let baseCircleList = [];
 
 const dialogRef = ref();
 const threeDemoRef = ref();
@@ -72,10 +71,8 @@ const isShowAlarm = ref(true);
 const fetchDataTimer = ref();
 const stationId = ref();
 const stationName = ref();
-const intervalTime = ref(60);
+const intervalTime = ref(15);
 const loadingInstance = ref();
-
-const openedRings = new Set(); // 记录当前展开了环形的天线名
 
 const state = reactive({
   antennas: [],
@@ -124,166 +121,6 @@ const addWaterRipples = (x, y, z, containerObj) => {
   }
 
   animate();
-};
-
-const addBaseCircle = (position, obj, item, forceError = false) => {
-  // forceError 为 true 时必定为红色异常，否则为绿色正常
-  const color = forceError ? 0xff0000 : 0x00ff00;
-  
-  let circleGeometry = new THREE.CircleGeometry(1000, 32);
-  let material = new THREE.MeshBasicMaterial({
-    color: color,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.8
-  });
-  let circleMesh = new THREE.Mesh(circleGeometry, material);
-  // 不做 X 轴旋转，使其直接平放在地面（因为父级模型自带了 -90 度的 X 轴旋转）
-  
-  // 在这里调整天线底座圆环的中心点偏移量！
-  // offsetX 调整左右，offsetZ 调整前后
-  let offsetX = item.hostNumber ? 0 : -160; 
-  let offsetZ = item.hostNumber ? 0 : -300;
-  
-  // 局部坐标系中 Z 轴可能代表垂直高度方向
-  circleMesh.position.set(position.x + offsetX, position.y, position.z + offsetZ + 10);
-  circleMesh.name = "baseCircle_" + item.antName;
-  circleMesh.userData = { position, item, obj, offsetX, offsetZ };
-  circleMesh.visible = isShowAlarm.value;
-  
-  // 给 A15 或 A23 常驻展示设备点
-  // 只保留一个设备，放到两个天线中间。我们可以只在渲染 A15 的时候生成一个设备，
-  // 然后把它偏移到 A15 和 A23 之间的某个位置即可。
-  if (item && item.antName === 'A15') {
-    // 再次放大尺寸
-    let boxGeom = new THREE.BoxGeometry(1000, 1000, 1000);
-    // 换成黑色
-    let boxMat = new THREE.MeshBasicMaterial({ 
-      color: 0x000000, 
-      transparent: false
-    }); 
-    let boxMesh = new THREE.Mesh(boxGeom, boxMat);
-    
-    // 给设备加个白色粗线框，确保黑色立方体在场景中能被清晰看到
-    let edges = new THREE.EdgesGeometry(boxGeom);
-    let lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 4 });
-    let lineMesh = new THREE.LineSegments(edges, lineMat);
-    boxMesh.add(lineMesh);
-    
-    // 假设 A15 和 A23 在 X 轴上相隔一定距离，我们把它放在中间的位置
-    // 你可以根据实际模型中 A15 和 A23 的距离调整这个 deviceOffsetX
-    let deviceOffsetX = -8000; 
-    let deviceOffsetY = -2000;
-    
-    // 放置在距离中心点偏移的位置，再抬高一点Z轴
-    boxMesh.position.set(position.x + offsetX + deviceOffsetX, position.y + deviceOffsetY, position.z + offsetZ + 400);
-    // 统一命名，便于清理
-    boxMesh.name = "baseCircle_shared_device";
-    boxMesh.visible = isShowAlarm.value;
-    obj.add(boxMesh);
-  }
-  
-  obj.add(circleMesh);
-  baseCircleList.push(circleMesh);
-};
-
-const createSpreadingRings = (position, obj, offsetX, offsetZ, item) => {
-  const dbmValues = ['-50 ~ -65 dBm', '-65 ~ -75 dBm', '-75 ~ -85 dBm'];
-  // 红色改成橙色，由原来的 [绿, 黄, 红] 变为 [绿, 黄, 橙]
-  const colors = [0x00ff00, 0xffff00, 0xffa500];
-  // todo -50 - -65 是绿色 -65 -75 是黄色 -75 -85 是橙色
-  for(let i=0; i<3; i++) {
-    // 将起始内径从 4000 改为 1000，以衔接底座的 CircleGeometry(1000)
-    const innerRadius = 1000 + i * 4000;
-    const outerRadius = 1000 + (i + 1) * 4000;
-    
-    let ringGeom = new THREE.RingGeometry(innerRadius, outerRadius, 64);
-    let material = new THREE.MeshBasicMaterial({ 
-      color: colors[i], 
-      side: THREE.DoubleSide, 
-      transparent: true, 
-      opacity: 0.6 
-    });
-    let ringMesh = new THREE.Mesh(ringGeom, material);
-    // 同样，Z轴代表垂直高度方向
-    ringMesh.position.set(position.x + offsetX, position.y, position.z + offsetZ + 20);
-    ringMesh.name = "spreadingRing";
-    ringMesh.visible = isShowAlarm.value;
-    
-    const labelDiv = document.createElement('div');
-    labelDiv.textContent = dbmValues[i];
-    labelDiv.style.color = '#ffffff';
-    labelDiv.style.fontSize = '200px';
-    labelDiv.style.fontWeight = 'bold';
-    labelDiv.style.pointerEvents = 'none';
-    labelDiv.style.textShadow = '0px 0px 4px #000';
-    labelDiv.style.textAlign = 'center';
-    labelDiv.style.width = '1200px';
-    
-    // 我们将其添加到 obj 里，所以我们只做相对偏移
-    // 强制把元素作为一个整体直接偏移坐标，不再依赖 transform 这种对 ThreeJS 容易失效的属性
-    const labelObj = new CSS3DObject(labelDiv);
-    
-    const labelRadius = innerRadius + (outerRadius - innerRadius) / 2;
-    // 我们将 labelRadius 加在水平方向 Y 轴上，使其在平面上向外扩散，Z 轴抬高以防穿模
-    labelObj.position.set(position.x + offsetX, position.y + labelRadius, position.z + offsetZ + 30);
-    // 不做 X 轴旋转，这样文字正面默认就是朝上的
-    labelObj.scale.set(1.5, 1.5, 1.5);
-    labelObj.visible = isShowAlarm.value;
-    labelObj.name = "spreadingRing";
-    
-    obj.add(labelObj);
-    obj.add(ringMesh);
-  }
-
-  // 给A15或A23添加特殊设备弹窗 (基于天线底座弹出)
-  if (item && (item.antName === 'A15' || item.antName === 'A23')) {
-    // 对应的小弹窗
-    const infoDiv = document.createElement('div');
-    infoDiv.style.background = 'rgba(0, 0, 0, 0.75)';
-    infoDiv.style.border = '4px solid #800080';
-    infoDiv.style.color = '#fff';
-    infoDiv.style.padding = '40px';
-    infoDiv.style.borderRadius = '20px';
-    infoDiv.style.fontSize = '100px';
-    infoDiv.style.pointerEvents = 'none';
-    infoDiv.style.textAlign = 'left';
-    infoDiv.style.lineHeight = '1.5';
-    infoDiv.style.whiteSpace = 'nowrap';
-    
-    // 如果是异常天线(比如我们固定的A23)，数值可以不一样用来区分
-    let curDbm = item.isCircleError ? "-75 dBm" : "-76 dBm";
-    let expectDbm = item.isCircleError ? "-85 dBm" : "-85 dBm";
-
-    infoDiv.innerHTML = `
-      <div style="font-size: 140px; margin-bottom: 20px; color: #da70d6; font-weight: bold; border-bottom: 2px solid #da70d6; padding: 20px 30px 40px 30px;">区域信号强度</div>
-      <div>当前强度: ${curDbm}</div>
-      <div>预期强度: ${expectDbm}</div>
-    `;
-    
-    const infoObj = new CSS3DObject(infoDiv);
-    // 弹窗位置放在天线底座中心正上方偏移
-    infoObj.position.set(position.x + offsetX, position.y - 1500, position.z + offsetZ + 3000);
-    // 为了让文字立起来面对相机，可以适当旋转
-    infoObj.rotateX(Math.PI / 2);
-    infoObj.scale.set(2.5, 2.5, 2.5);
-    infoObj.name = "spreadingRing";
-    infoObj.visible = isShowAlarm.value;
-    
-    obj.add(infoObj);
-
-    function renderInfo() {
-      if (!infoObj.parent) return;
-      if (camera && controls) {
-        const dirx = camera.position.x - controls.target.x;
-        const dirz = camera.position.z - controls.target.z;
-        const theta = Math.atan2(dirx, dirz);
-        infoObj.rotation.y = theta;
-      }
-      requestAnimationFrame(renderInfo);
-    }
-    renderInfo();
-  }
 };
 
 // 获取所有子模型中心点并存储
@@ -359,20 +196,17 @@ const clearAllAlarmDialogs = () => {
   });
 
   dialogLineList = [];
-  baseCircleList = [];
 
   model?.traverse((_obj) => {
     if (_obj.children.length > 0 && _obj.isMesh) {
       // 移除dialog 和 水波纹
-      for (let index = _obj.children.length - 1; index >= 0; index--) {
-        const child = _obj.children[index];
+      const len = _obj.children.length;
+      for (let index = 0; index < len; index++) {
         if (
-          child.name == "waterRipples" ||
-          child.name.indexOf("dialog") >= 0 ||
-          child.name.indexOf("baseCircle") >= 0 ||
-          child.name == "spreadingRing"
+          _obj.children[0].name == "waterRipples" ||
+          _obj.children[0].name.indexOf("dialog") >= 0
         ) {
-          _obj.remove(child);
+          _obj.remove(_obj.children[0]);
         }
       }
     }
@@ -386,16 +220,9 @@ const createAlarmDialog = () => {
     if (_obj.isMesh) {
       state.antennas.forEach((item) => {
         if (item.antName == _obj.name) {
-          // 在创建各种告警/信息框之前，如果不是被选中的天线模型则先直接设为透明隐藏
-          _obj.visible = true; 
           insertAntennasDialogHtml(_obj, item, state.positionMap[item.antName]);
         }
       });
-      // 遍历完成后，如果当前网格不属于我们要显示的天线/主机列表，就把它隐藏
-      const isTarget = state.antennas.some(item => item.antName === _obj.name);
-      if (!isTarget && _obj.name.startsWith("A")) {
-        _obj.visible = false;
-      }
     }
   });
 };
@@ -533,27 +360,12 @@ const insertAntennasDialogHtml = (obj, item, position) => {
     item
   );
 
-  // 修改原来的水波纹和底座逻辑，增加我们自定义的连接圆圈状态(isCircleError)作为判断
   if (item.antStatus != 1) {
-    openedRings.delete(item.antName);
+    // 添加红色水波纹
     if (item.hostNumber) {
       addWaterRipples(position.x, position.y, position.z - 0, obj);
     } else {
       addWaterRipples(position.x, position.y, position.z - 300, obj);
-    }
-  } else if (item.isCircleError) {
-    addBaseCircle(position, obj, item, true);
-    if (openedRings.has(item.antName)) {
-      let offsetX = item.hostNumber ? 0 : -160; 
-      let offsetZ = item.hostNumber ? 0 : -300;
-      createSpreadingRings(position, obj, offsetX, offsetZ, item);
-    }
-  } else {
-    addBaseCircle(position, obj, item, false);
-    if (openedRings.has(item.antName)) {
-      let offsetX = item.hostNumber ? 0 : -160; 
-      let offsetZ = item.hostNumber ? 0 : -300;
-      createSpreadingRings(position, obj, offsetX, offsetZ, item);
     }
   }
 };
@@ -568,12 +380,7 @@ const showAlarmHandle = () => {
   model?.traverse((_obj) => {
     if (_obj.isMesh && _obj.children.length > 0) {
       _obj?.traverse((item) => {
-        if (
-          item.name == "waterRipples" ||
-          item.name.indexOf("dialog") >= 0 ||
-          item.name.indexOf("baseCircle") >= 0 ||
-          item.name === "spreadingRing"
-        ) {
+        if (item.name == "waterRipples" || item.name.indexOf("dialog") >= 0) {
           item.visible = isShowAlarm.value;
         }
       });
@@ -586,25 +393,7 @@ const mockDataChange = async () => {
     const res = await getStationAntennaList(stationId.value);
     const { hostList, antennaList } = formatAntennaList(res);
     state.antennas = [];
-    
-    // 过滤只显示A15和A23天线
-    const filteredAntennas = antennaList.filter(
-      item => item.antName === 'A15' || item.antName === 'A23'
-    );
-    
-    // 强制设定为所需的状态
-    filteredAntennas.forEach(item => {
-      // 强制让 A15 和 A23 天线状态自身显示为“正常”
-      item.antStatus = 1; 
-      // 附加一个标记，用来判断底部的信号连接是否异常
-      if (item.antName === 'A23') {
-        item.isCircleError = true;
-      } else {
-        item.isCircleError = false;
-      }
-    });
-
-    state.antennas.push(...filteredAntennas, ...hostList);
+    state.antennas.push(...antennaList, ...hostList);
 
     // Dynamic change antennas material
     renderAntennaMaterial(model, state.antennas);
@@ -621,7 +410,7 @@ const mockDataChange = async () => {
 
 onMounted(async () => {
   stationId.value = parent.localStorage.getItem("stationId") || "0833";
-  stationName.value = parent.localStorage.getItem("stationName");
+  stationName.value = parent.localStorage.getItem("stationName") || "大鹏站";
   intervalTime.value = parent.localStorage.getItem("intervalTime") || 15;
   // 设置dom的宽高，屏幕自适应
   getDomInfo(threeDemoRef.value);
@@ -641,42 +430,6 @@ onMounted(async () => {
   renderResize(threeDemoRef.value);
   // 开始执行渲染循环 将所有内容具现化
   renderLoop();
-  
-  threeDemoRef.value.addEventListener('click', (event) => {
-    const rect = threeDemoRef.value.getBoundingClientRect();
-    const mouse = new THREE.Vector2();
-    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-
-    const intersects = raycaster.intersectObjects(baseCircleList);
-    if (intersects.length > 0) {
-      const circleMesh = intersects[0].object;
-      const { position, obj, offsetX, offsetZ, item } = circleMesh.userData;
-      
-      let hasRings = false;
-      obj.children.forEach(child => {
-        if (child.name === "spreadingRing") hasRings = true;
-      });
-      
-      if (hasRings) {
-        // 如果已经打开，则关闭它（从视图移除并更新状态记录）
-        for (let i = obj.children.length - 1; i >= 0; i--) {
-          if (obj.children[i].name === "spreadingRing") {
-            obj.remove(obj.children[i]);
-          }
-        }
-        openedRings.delete(item.antName);
-      } else {
-        // 如果未打开，则开启它
-        openedRings.add(item.antName);
-        createSpreadingRings(position, obj, offsetX, offsetZ, item);
-      }
-    }
-  });
-
   // 动态的获取服务器天线列表 根据数据变化实时修改天线状态
   // mockDataChange();
   // fetchDataTimer.value = setInterval(mockDataChange, intervalTime.value * 1000);

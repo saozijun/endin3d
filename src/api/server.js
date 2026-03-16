@@ -17,7 +17,7 @@ export const getStationAntennaList = (stationId, params) => {
   const isTest =
     location.search.indexOf("isTest") >= 0 &&
     location.search.split("isTest=")[1];
-  if (true) {
+  if (isTest === "true") {
     return mockServer[1].response().data;
   } else {
     return request.post(`${baseUrl}/3d/station/${stationId}`, {
