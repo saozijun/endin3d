@@ -11,7 +11,6 @@
     ></div>
   </div>
   <div class="station-container">
-    <div class="station-logo"></div>
     <div class="station-name">{{ stationName }}</div>
   </div>
   <div class="home-container">
