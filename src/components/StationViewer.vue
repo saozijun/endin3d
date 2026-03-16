@@ -621,8 +621,8 @@ const mockDataChange = async () => {
 
 onMounted(async () => {
   stationId.value = parent.localStorage.getItem("stationId") || "0833";
-  stationName.value = ""; // parent.localStorage.getItem("stationName") || "大鹏站"
-  intervalTime.value = parent.localStorage.getItem("intervalTime") || 60;
+  stationName.value = parent.localStorage.getItem("stationName");
+  intervalTime.value = parent.localStorage.getItem("intervalTime") || 15;
   // 设置dom的宽高，屏幕自适应
   getDomInfo(threeDemoRef.value);
   // 启动场景、灯光、相机 实例
@@ -678,8 +678,8 @@ onMounted(async () => {
   });
 
   // 动态的获取服务器天线列表 根据数据变化实时修改天线状态
-  mockDataChange();
-  fetchDataTimer.value = setInterval(mockDataChange, intervalTime.value * 1000);
+  // mockDataChange();
+  // fetchDataTimer.value = setInterval(mockDataChange, intervalTime.value * 1000);
 });
 
 onBeforeMount(() => {
